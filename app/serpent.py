@@ -30,3 +30,32 @@ _SBOXES: Tuple[Tuple[int, ...], ...] = (
     (7, 2, 12, 5, 8, 4, 6, 11, 14, 9, 1, 15, 13, 3, 10, 0),   # S6
     (1, 13, 15, 0, 14, 8, 2, 11, 7, 4, 12, 10, 9, 3, 5, 6),   # S7
 )
+def _invert_sbox(sbox: Sequence[int]) -> Tuple[int, ...]:
+    inv = [0] * 16
+    for i, v in enumerate(sbox):
+        inv[v] = i
+    return tuple(inv)
+
+
+_INV_SBOXES: Tuple[Tuple[int, ...], ...] = tuple(_invert_sbox(s) for s in _SBOXES)
+
+
+def _rotl32(x: int, n: int) -> int:
+    x &= _MASK32
+    return ((x << n) | (x >> (32 - n))) & _MASK32
+
+
+def _rotr32(x: int, n: int) -> int:
+    x &= _MASK32
+    return ((x >> n) | (x << (32 - n))) & _MASK32
+
+
+def _words_from_block(block16: bytes) -> Tuple[int, int, int, int]:
+    if len(block16) != 16:
+        raise ValueError("Block must be exactly 16 bytes (128 bits).")
+    return struct.unpack("<4I", block16)
+
+
+def _block_from_words(words4: Tuple[int, int, int, int]) -> bytes:
+    a0, a1, a2, a3 = (w & _MASK32 for w in words4)
+    return struct.pack("<4I", a0, a1, a2, a3)
