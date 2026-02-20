@@ -63,3 +63,72 @@ class SerpentGUI(ttk.Frame):
         style.configure("TLabelframe", padding=(10, 8))
         style.configure("TLabelframe.Label", padding=(4, 2))
         style.configure("Status.TLabel", anchor="w", padding=(10, 6))
+    # ---------- Layout ----------
+
+    def _build_layout(self) -> None:
+        self.grid(row=0, column=0, sticky="nsew")
+        self.master.rowconfigure(0, weight=1)
+        self.master.columnconfigure(0, weight=1)
+
+        # Header
+        header = ttk.Frame(self)
+        header.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 6))
+        header.columnconfigure(0, weight=1)
+
+        ttk.Label(
+            header,
+            text="Serpent (CTR) — шифрование и расшифрование",
+            font=("Segoe UI", 12, "bold"),
+        ).grid(row=0, column=0, sticky="w")
+
+        ttk.Label(
+            header,
+            text="Формат шифртекста: v1:<nonce_base64>:<ciphertext_base64>",
+        ).grid(row=1, column=0, sticky="w", pady=(2, 0))
+
+        # Key frame
+        key_frame = ttk.Labelframe(self, text="Ключ (hex)")
+        key_frame.grid(row=1, column=0, sticky="ew", padx=12, pady=6)
+        key_frame.columnconfigure(0, weight=1)
+
+        self._key_entry = ttk.Entry(
+            key_frame,
+            textvariable=self.key_var,
+            validate="key",
+            validatecommand=(self.register(self._validate_key_entry), "%P"),
+        )
+        self._key_entry.grid(row=0, column=0, sticky="ew", padx=(4, 8), pady=(4, 2))
+
+        controls = ttk.Frame(key_frame)
+        controls.grid(row=0, column=1, sticky="e", padx=(0, 4), pady=(4, 2))
+
+        ttk.Label(controls, text="Размер:").grid(row=0, column=0, padx=(0, 6))
+
+        size_combo = ttk.Combobox(
+            controls,
+            textvariable=self.key_size_var,
+            values=("128", "192", "256"),
+            width=6,
+            state="readonly",
+        )
+        size_combo.grid(row=0, column=1, padx=(0, 8))
+
+        ttk.Button(controls, text="Сгенерировать", command=self._generate_key).grid(
+            row=0, column=2, padx=(0, 8)
+        )
+        ttk.Button(controls, text="Загрузить…", command=self._load_key_from_file).grid(
+            row=0, column=3, padx=(0, 8)
+        )
+        ttk.Button(controls, text="Сохранить…", command=self._save_key_to_file).grid(
+            row=0, column=4, padx=(0, 8)
+        )
+        ttk.Button(controls, text="Какой ключ?", command=self._show_key_help).grid(
+            row=0, column=5, padx=(0, 8)
+        )
+        ttk.Button(controls, text="Очистить", command=self._clear_key).grid(
+            row=0, column=6
+        )
+
+        ttk.Label(key_frame, textvariable=self.key_info_var).grid(
+            row=1, column=0, columnspan=2, sticky="w", padx=4, pady=(0, 4)
+        )
