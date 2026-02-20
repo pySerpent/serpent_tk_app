@@ -197,3 +197,103 @@ def unpack_container(container: str) -> Tuple[bytes, bytes]:
 
     ciphertext = _b64decode(ct_b64, field_name="ciphertext")
     return nonce, ciphertext
+# -------- Public API --------
+
+def _require_text(text: str) -> bytes:
+    if text is None:
+        raise ValidationError("Введите текст для шифрования.")
+    if not text.strip():
+        raise ValidationError("Введите текст для шифрования (поле не должно быть пустым).")
+    return text.encode("utf-8", errors="strict")
+
+
+def _ensure_size_limit(data: bytes) -> None:
+    if len(data) > MAX_TEXT_BYTES:
+        raise ValidationError(
+            f"Слишком большой текст: {len(data)} байт. Максимум: {MAX_TEXT_BYTES} байт."
+        )
+
+
+def bytes_to_text_utf8(data: bytes) -> str:
+    try:
+        return data.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise CryptoError(
+            "Расшифрованные данные не являются корректным UTF-8 текстом. "
+            "Возможно, выбран неверный ключ или повреждён шифртекст."
+        ) from exc
+
+
+def text_to_bytes_utf8(text: str) -> bytes:
+    if text is None:
+        return b""
+    return text.encode("utf-8", errors="strict")
+
+
+def encrypt_text(plaintext: str, key_hex: str) -> str:
+    pt_bytes = _require_text(plaintext)
+    _ensure_size_limit(pt_bytes)
+
+    key_bytes = parse_key_hex(key_hex)
+    cipher = SerpentCipher(key_bytes)
+
+    nonce = generate_nonce()
+    ct_bytes = serpent_ctr_crypt(cipher, nonce, pt_bytes)
+
+    return pack_container(nonce=nonce, ciphertext=ct_bytes)
+
+
+def decrypt_text(container: str, key_hex: str) -> str:
+    nonce, ct_bytes = unpack_container(container)
+    if not ct_bytes:
+        raise ValidationError("Шифртекст пустой. Нечего расшифровывать.")
+
+    key_bytes = parse_key_hex(key_hex)
+    cipher = SerpentCipher(key_bytes)
+
+    pt_bytes = serpent_ctr_crypt(cipher, nonce, ct_bytes)
+    return bytes_to_text_utf8(pt_bytes)
+
+
+def read_text_file_utf8(path: str, *, max_bytes: int = MAX_TEXT_BYTES) -> str:
+    if not path:
+        raise ValidationError("Не выбран файл.")
+
+    try:
+        with open(path, "rb") as f:
+            data = f.read(max_bytes + 1)
+    except OSError as exc:
+        raise ValidationError(f"Не удалось открыть файл: {exc}") from exc
+
+    if len(data) > max_bytes:
+        raise ValidationError(
+            f"Файл слишком большой: {len(data)} байт. Максимум: {max_bytes} байт."
+        )
+
+    try:
+        return data.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise ValidationError(
+            "Файл должен быть в кодировке UTF-8 (без повреждённых символов)."
+        ) from exc
+
+
+def write_text_file_utf8(path: str, text: str, *, max_bytes: int = 2_000_000) -> None:
+    if not path:
+        raise ValidationError("Не выбран файл для сохранения.")
+
+    if text is None:
+        text = ""
+
+    data = text.encode("utf-8", errors="strict")
+    if len(data) > max_bytes:
+        raise ValidationError(
+            f"Слишком большой объём данных для сохранения: {len(data)} байт. "
+            f"Максимум: {max_bytes} байт."
+        )
+
+    try:
+        with open(path, "wb") as f:
+            f.write(data)
+    except OSError as exc:
+        raise ValidationError(f"Не удалось сохранить файл: {exc}") from exc
