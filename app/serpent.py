@@ -196,3 +196,72 @@ def _make_subkeys(user_key: bytes) -> List[Tuple[int, int, int, int]]:
         subkeys.append(k)
 
     return subkeys
+@dataclass(frozen=True)
+class SerpentCipher:
+    """
+    Serpent block cipher.
+
+    Usage:
+        cipher = SerpentCipher(key_bytes)
+        c = cipher.encrypt_block(plaintext16)
+        p = cipher.decrypt_block(ciphertext16)
+    """
+    key: bytes
+    _subkeys: Tuple[Tuple[int, int, int, int], ...] = ()
+
+    def __post_init__(self) -> None:
+        subkeys = _make_subkeys(self.key)
+        object.__setattr__(self, "_subkeys", tuple(subkeys))
+
+    def encrypt_block(self, block16: bytes) -> bytes:
+        x = _words_from_block(block16)
+        x = _permute_ip(x)
+
+        # 32 rounds
+        for r in range(32):
+            k = self._subkeys[r]
+            x = ((x[0] ^ k[0]) & _MASK32, (x[1] ^ k[1]) & _MASK32,
+                 (x[2] ^ k[2]) & _MASK32, (x[3] ^ k[3]) & _MASK32)
+            x = _apply_sbox_bitslice(x, _SBOXES[r % 8])
+            if r != 31:
+                x = _lt(x)
+
+        # Final whitening
+        kf = self._subkeys[32]
+        x = ((x[0] ^ kf[0]) & _MASK32, (x[1] ^ kf[1]) & _MASK32,
+             (x[2] ^ kf[2]) & _MASK32, (x[3] ^ kf[3]) & _MASK32)
+
+        x = _permute_fp(x)
+        return _block_from_words(x)
+
+    def decrypt_block(self, block16: bytes) -> bytes:
+        x = _words_from_block(block16)
+        x = _permute_ip(x)
+
+        # Undo final whitening
+        kf = self._subkeys[32]
+        x = ((x[0] ^ kf[0]) & _MASK32, (x[1] ^ kf[1]) & _MASK32,
+             (x[2] ^ kf[2]) & _MASK32, (x[3] ^ kf[3]) & _MASK32)
+
+        # Inverse rounds: r = 31..0
+        for r in range(31, -1, -1):
+            if r != 31:
+                x = _inv_lt(x)
+            x = _apply_sbox_bitslice(x, _INV_SBOXES[r % 8])
+            k = self._subkeys[r]
+            x = ((x[0] ^ k[0]) & _MASK32, (x[1] ^ k[1]) & _MASK32,
+                 (x[2] ^ k[2]) & _MASK32, (x[3] ^ k[3]) & _MASK32)
+
+        x = _permute_fp(x)
+        return _block_from_words(x)
+
+
+# Optional minimal sanity check (round-trip)
+if __name__ == "__main__":
+    key = bytes.fromhex("000102030405060708090a0b0c0d0e0f")  # 128-bit
+    pt = bytes.fromhex("00112233445566778899aabbccddeeff")
+    cipher = SerpentCipher(key)
+    ct = cipher.encrypt_block(pt)
+    rt = cipher.decrypt_block(ct)
+    assert rt == pt, "Serpent round-trip self-test failed."
+    print("Serpent round-trip self-test OK.")
