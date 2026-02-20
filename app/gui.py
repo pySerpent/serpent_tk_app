@@ -343,3 +343,26 @@ class SerpentGUI(ttk.Frame):
     def _clear_key(self) -> None:
         self.key_var.set("")
         self._set_status("Ключ очищен.")
+    # ---------- Actions: load/save plain/cipher ----------
+
+    def _load_plain_from_file(self) -> None:
+        path = self._ask_open_txt("Выберите текстовый файл (UTF-8)")
+        if not path:
+            return
+        try:
+            self._set_plain(read_text_file_utf8(path))
+            self._set_status("Открытый текст загружен из файла.")
+        except ValidationError as exc:
+            self._set_status(f"Ошибка загрузки: {exc}")
+            messagebox.showerror("Ошибка загрузки", str(exc), parent=self.master)
+
+    def _save_plain_to_file(self) -> None:
+        path = self._ask_save_txt("Сохранить открытый текст", "plaintext.txt")
+        if not path:
+            return
+        try:
+            write_text_file_utf8(path, self._get_plain())
+            self._set_status("Открытый текст сохранён.")
+        except ValidationError as exc:
+            self._set_status(f"Ошибка сохранения: {exc}")
+            messagebox.showerror("Ошибка сохранения", str(exc), parent=self.master)
