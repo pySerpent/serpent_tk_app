@@ -414,3 +414,55 @@ class SerpentGUI(ttk.Frame):
         except Exception as exc:
             self._set_status("Внутренняя ошибка при расшифровании.")
             messagebox.showerror("Внутренняя ошибка", f"{exc}", parent=self.master)
+    # ---------- Clipboard / clear ----------
+
+    def _copy_plain(self) -> None:
+        text = self._get_plain()
+        if not text.strip():
+            self._set_status("Нечего копировать: поле текста пустое.")
+            return
+        self.master.clipboard_clear()
+        self.master.clipboard_append(text)
+        self.master.update_idletasks()
+        self._set_status("Текст скопирован в буфер обмена.")
+
+    def _copy_cipher(self) -> None:
+        text = self._get_cipher()
+        if not text.strip():
+            self._set_status("Нечего копировать: поле шифртекста пустое.")
+            return
+        self.master.clipboard_clear()
+        self.master.clipboard_append(text)
+        self.master.update_idletasks()
+        self._set_status("Шифртекст скопирован в буфер обмена.")
+
+    def _clear_all(self) -> None:
+        self._set_plain("")
+        self._set_cipher("")
+        self._set_status("Поля очищены.")
+
+    # ---------- Help ----------
+
+    def _show_key_help(self) -> None:
+        message = (
+            "Ключ вводится в формате HEX.\n\n"
+            "Допустимые длины ключа Serpent:\n"
+            "• 128 бит  = 16 байт  = 64 hex-символа\n"
+            "• 192 бита = 24 байта = 96 hex-символов\n"
+            "• 256 бит  = 32 байта = 128 hex-символов\n\n"
+            "Пробелы игнорируются. Префикс 0x допускается.\n"
+            "Можно сгенерировать ключ и сохранить его в файл."
+        )
+        messagebox.showinfo("Подсказка по ключу", message, parent=self.master)
+
+
+def setup_main_window(root: tk.Tk) -> None:
+    root.title("Serpent (CTR) — Tkinter")
+    root.minsize(980, 620)
+    root.rowconfigure(0, weight=1)
+    root.columnconfigure(0, weight=1)
+
+
+def create_app(root: tk.Tk) -> SerpentGUI:
+    setup_main_window(root)
+    return SerpentGUI(root)
