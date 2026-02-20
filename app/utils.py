@@ -80,3 +80,15 @@ def canonical_key_hex(key_hex: str) -> str:
     """
     key_bytes = parse_key_hex(key_hex)
     return key_bytes.hex()
+def generate_key_hex(bits: int, *, grouped: bool = True) -> str:
+    if bits not in (128, 192, 256):
+        raise ValidationError("Размер ключа должен быть 128/192/256 бит.")
+
+    raw = secrets.token_bytes(bits // 8)
+    hex_str = raw.hex()
+
+    if not grouped:
+        return hex_str
+
+    chunks = [hex_str[i:i + 8] for i in range(0, len(hex_str), 8)]
+    return " ".join(chunks)
