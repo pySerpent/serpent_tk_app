@@ -59,3 +59,41 @@ def _words_from_block(block16: bytes) -> Tuple[int, int, int, int]:
 def _block_from_words(words4: Tuple[int, int, int, int]) -> bytes:
     a0, a1, a2, a3 = (w & _MASK32 for w in words4)
     return struct.pack("<4I", a0, a1, a2, a3)
+def _permute_ip(words4: Tuple[int, int, int, int]) -> Tuple[int, int, int, int]:
+    """
+    Initial Permutation (IP): transpose bits into bit-slice form.
+    """
+    in_w = words4
+    out_w = [0, 0, 0, 0]
+
+    for p in range(128):
+        in_word = p // 32
+        in_bit = p % 32
+        bit = (in_w[in_word] >> in_bit) & 1
+
+        q = 32 * (p % 4) + (p // 4)
+        out_word = q // 32
+        out_bit = q % 32
+        out_w[out_word] |= bit << out_bit
+
+    return (out_w[0] & _MASK32, out_w[1] & _MASK32, out_w[2] & _MASK32, out_w[3] & _MASK32)
+
+
+def _permute_fp(words4: Tuple[int, int, int, int]) -> Tuple[int, int, int, int]:
+    """
+    Final Permutation (FP): inverse of IP.
+    """
+    in_w = words4
+    out_w = [0, 0, 0, 0]
+
+    for q in range(128):
+        in_word = q // 32
+        in_bit = q % 32
+        bit = (in_w[in_word] >> in_bit) & 1
+
+        p = 4 * (q % 32) + (q // 32)
+        out_word = p // 32
+        out_bit = p % 32
+        out_w[out_word] |= bit << out_bit
+
+    return (out_w[0] & _MASK32, out_w[1] & _MASK32, out_w[2] & _MASK32, out_w[3] & _MASK32)
