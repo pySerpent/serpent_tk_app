@@ -97,3 +97,22 @@ def _permute_fp(words4: Tuple[int, int, int, int]) -> Tuple[int, int, int, int]:
         out_w[out_word] |= bit << out_bit
 
     return (out_w[0] & _MASK32, out_w[1] & _MASK32, out_w[2] & _MASK32, out_w[3] & _MASK32)
+def _apply_sbox_bitslice(
+    words4: Tuple[int, int, int, int],
+    sbox: Sequence[int],
+) -> Tuple[int, int, int, int]:
+    """
+    Apply a 4-bit S-box in *bit-slice* form.
+    """
+    x0, x1, x2, x3 = (w & _MASK32 for w in words4)
+    y0 = y1 = y2 = y3 = 0
+
+    for j in range(32):
+        v = ((x0 >> j) & 1) | (((x1 >> j) & 1) << 1) | (((x2 >> j) & 1) << 2) | (((x3 >> j) & 1) << 3)
+        u = sbox[v] & 0xF
+        y0 |= (u & 1) << j
+        y1 |= ((u >> 1) & 1) << j
+        y2 |= ((u >> 2) & 1) << j
+        y3 |= ((u >> 3) & 1) << j
+
+    return (y0 & _MASK32, y1 & _MASK32, y2 & _MASK32, y3 & _MASK32)
