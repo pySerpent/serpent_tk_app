@@ -92,3 +92,41 @@ def generate_key_hex(bits: int, *, grouped: bool = True) -> str:
 
     chunks = [hex_str[i:i + 8] for i in range(0, len(hex_str), 8)]
     return " ".join(chunks)
+def generate_nonce() -> bytes:
+    return secrets.token_bytes(NONCE_SIZE)
+
+
+def _make_counter_block(nonce: bytes, counter: int) -> bytes:
+    if counter < 0 or counter > 0xFFFFFFFFFFFFFFFF:
+        raise ValidationError("Счётчик CTR вышел за допустимые пределы.")
+    return nonce + counter.to_bytes(COUNTER_SIZE, byteorder="big", signed=False)
+
+
+def serpent_ctr_crypt(cipher: SerpentCipher, nonce: bytes, data: bytes) -> bytes:
+    if len(nonce) != NONCE_SIZE:
+        raise ValidationError(f"Nonce должен быть длиной {NONCE_SIZE} байт.")
+
+    if data is None:
+        data = b""
+
+    out = bytearray(len(data))
+    counter = 0
+    offset = 0
+
+    while offset < len(data):
+        counter_block = _make_counter_block(nonce, counter)
+        keystream = cipher.encrypt_block(counter_block)
+
+        chunk = data[offset: offset + 16]
+        out[offset: offset + len(chunk)] = _xor_bytes(chunk, keystream[:len(chunk)])
+
+        offset += len(chunk)
+        counter = (counter + 1) & 0xFFFFFFFFFFFFFFFF
+
+    return bytes(out)
+
+
+def _xor_bytes(a: bytes, b: bytes) -> bytes:
+    if len(a) != len(b):
+        raise ValueError("Internal error: XOR length mismatch.")
+    return bytes(x ^ y for x, y in zip(a, b))
