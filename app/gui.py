@@ -287,3 +287,59 @@ class SerpentGUI(ttk.Frame):
             row=3, column=0, sticky="ew", pady=(6, 0)
         )
         ttk.Frame(self).grid(row=4, column=0, sticky="ew", pady=(0, 10))
+    # ---------- File dialogs ----------
+
+    def _ask_open_txt(self, title: str) -> str:
+        return filedialog.askopenfilename(
+            parent=self.master,
+            title=title,
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+        )
+
+    def _ask_save_txt(self, title: str, default_name: str) -> str:
+        return filedialog.asksaveasfilename(
+            parent=self.master,
+            title=title,
+            defaultextension=".txt",
+            initialfile=default_name,
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+        )
+
+    # ---------- Actions: key ----------
+
+    def _generate_key(self) -> None:
+        try:
+            bits = int(self.key_size_var.get())
+            self.key_var.set(generate_key_hex(bits, grouped=True))
+            self._set_status(f"Сгенерирован ключ {bits} бит.")
+        except (ValueError, ValidationError) as exc:
+            self._set_status(f"Ошибка генерации ключа: {exc}")
+            messagebox.showerror("Ошибка", str(exc), parent=self.master)
+
+    def _load_key_from_file(self) -> None:
+        path = self._ask_open_txt("Выберите файл с ключом (UTF-8)")
+        if not path:
+            return
+        try:
+            content = read_text_file_utf8(path, max_bytes=50_000).strip()
+            self.key_var.set(content)
+            self._set_status("Ключ загружен из файла.")
+        except ValidationError as exc:
+            self._set_status(f"Ошибка загрузки ключа: {exc}")
+            messagebox.showerror("Ошибка", str(exc), parent=self.master)
+
+    def _save_key_to_file(self) -> None:
+        path = self._ask_save_txt("Сохранить ключ в файл", "key_hex.txt")
+        if not path:
+            return
+        try:
+            key_canon = canonical_key_hex(self.key_var.get())
+            write_text_file_utf8(path, key_canon + "\n", max_bytes=50_000)
+            self._set_status("Ключ сохранён.")
+        except ValidationError as exc:
+            self._set_status(f"Ошибка сохранения ключа: {exc}")
+            messagebox.showerror("Ошибка", str(exc), parent=self.master)
+
+    def _clear_key(self) -> None:
+        self.key_var.set("")
+        self._set_status("Ключ очищен.")
