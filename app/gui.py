@@ -132,3 +132,83 @@ class SerpentGUI(ttk.Frame):
         ttk.Label(key_frame, textvariable=self.key_info_var).grid(
             row=1, column=0, columnspan=2, sticky="w", padx=4, pady=(0, 4)
         )
+    def _create_text_with_scrollbar(self, parent: ttk.Labelframe, *, row: int) -> tk.Text:
+        """
+        Create Text + vertical scrollbar in the SAME container frame.
+        This prevents misalignment issues.
+        """
+        container = ttk.Frame(parent)
+        container.grid(row=row, column=0, sticky="nsew", padx=4, pady=4)
+        parent.columnconfigure(0, weight=1)
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(0, weight=1)
+
+        text = tk.Text(
+            container,
+            wrap="word",
+            height=14,
+            undo=True,
+            borderwidth=1,
+            relief="solid",
+        )
+        vsb = ttk.Scrollbar(container, orient="vertical", command=text.yview)
+        text.configure(yscrollcommand=vsb.set)
+
+        text.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+
+        return text
+
+    # ---------- Hotkeys ----------
+
+    def _bind_events(self) -> None:
+        self.master.bind_all("<Control-Return>", lambda _e: self._encrypt())
+        self.master.bind_all("<Control-Shift-Return>", lambda _e: self._decrypt())
+        self.master.bind_all("<Control-l>", lambda _e: self._clear_all())
+        self.master.after(50, self._update_key_info)
+
+    # ---------- Helpers ----------
+
+    def _get_plain(self) -> str:
+        return self.plain_text.get("1.0", "end-1c")
+
+    def _set_plain(self, value: str) -> None:
+        self.plain_text.delete("1.0", "end")
+        self.plain_text.insert("1.0", value)
+
+    def _get_cipher(self) -> str:
+        return self.cipher_text.get("1.0", "end-1c")
+
+    def _set_cipher(self, value: str) -> None:
+        self.cipher_text.delete("1.0", "end")
+        self.cipher_text.insert("1.0", value)
+
+    def _set_status(self, message: str) -> None:
+        self.status_var.set(message)
+
+    # ---------- Key validation ----------
+
+    def _validate_key_entry(self, proposed: str) -> bool:
+        if proposed == "":
+            return True
+        return _HEX_ALLOWED_RE.match(proposed) is not None
+
+    def _update_key_info(self) -> None:
+        key_s = self.key_var.get()
+
+        if not key_s.strip():
+            self.key_info_var.set("Ключ: — (введите 64/96/128 hex-символов для 128/192/256 бит)")
+            self._btn_encrypt.state(["disabled"])
+            self._btn_decrypt.state(["disabled"])
+            return
+
+        try:
+            key_bytes = parse_key_hex(key_s)
+            bits = len(key_bytes) * 8
+            self.key_info_var.set(f"Ключ: корректный ({bits} бит)")
+            self._btn_encrypt.state(["!disabled"])
+            self._btn_decrypt.state(["!disabled"])
+        except ValidationError as exc:
+            self.key_info_var.set(f"Ключ: ошибка — {exc}")
+            self._btn_encrypt.state(["disabled"])
+            self._btn_decrypt.state(["disabled"])
