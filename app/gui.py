@@ -388,3 +388,29 @@ class SerpentGUI(ttk.Frame):
         except ValidationError as exc:
             self._set_status(f"Ошибка сохранения: {exc}")
             messagebox.showerror("Ошибка сохранения", str(exc), parent=self.master)
+    # ---------- Actions: encrypt/decrypt ----------
+
+    def _encrypt(self) -> None:
+        try:
+            result = encrypt_text(plaintext=self._get_plain(), key_hex=self.key_var.get())
+            self._set_cipher(result)
+            self._set_status("Шифрование выполнено.")
+        except ValidationError as exc:
+            self._set_status(f"Ошибка ввода: {exc}")
+            messagebox.showerror("Ошибка ввода", str(exc), parent=self.master)
+        except Exception as exc:
+            self._set_status("Внутренняя ошибка при шифровании.")
+            messagebox.showerror("Внутренняя ошибка", f"{exc}", parent=self.master)
+
+    def _decrypt(self) -> None:
+        try:
+            result = decrypt_text(container=self._get_cipher(), key_hex=self.key_var.get())
+            self._set_plain(result)
+            self._set_status("Расшифрование выполнено.")
+        except (ValidationError, CryptoError) as exc:
+            title = "Ошибка ввода" if isinstance(exc, ValidationError) else "Ошибка расшифрования"
+            self._set_status(f"{title}: {exc}")
+            messagebox.showerror(title, str(exc), parent=self.master)
+        except Exception as exc:
+            self._set_status("Внутренняя ошибка при расшифровании.")
+            messagebox.showerror("Внутренняя ошибка", f"{exc}", parent=self.master)
