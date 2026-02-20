@@ -212,3 +212,78 @@ class SerpentGUI(ttk.Frame):
             self.key_info_var.set(f"Ключ: ошибка — {exc}")
             self._btn_encrypt.state(["disabled"])
             self._btn_decrypt.state(["disabled"])
+        # Body
+        body = ttk.Frame(self)
+        body.grid(row=2, column=0, sticky="nsew", padx=12, pady=6)
+        self.rowconfigure(2, weight=1)
+        body.rowconfigure(0, weight=1)
+        body.columnconfigure(0, weight=1)
+        body.columnconfigure(1, weight=0)
+        body.columnconfigure(2, weight=1)
+
+        # Plaintext panel
+        plain_box = ttk.Labelframe(body, text="Открытый текст")
+        plain_box.grid(row=0, column=0, sticky="nsew")
+        plain_box.columnconfigure(0, weight=1)
+        plain_box.rowconfigure(1, weight=1)
+
+        plain_toolbar = ttk.Frame(plain_box)
+        plain_toolbar.grid(row=0, column=0, sticky="ew", padx=4, pady=(4, 0))
+        plain_toolbar.columnconfigure(0, weight=1)
+
+        ttk.Button(plain_toolbar, text="Загрузить…", command=self._load_plain_from_file).grid(
+            row=0, column=0, sticky="w", padx=(0, 8)
+        )
+        ttk.Button(plain_toolbar, text="Сохранить…", command=self._save_plain_to_file).grid(
+            row=0, column=1, sticky="w"
+        )
+
+        self.plain_text = self._create_text_with_scrollbar(plain_box, row=1)
+
+        # Middle buttons
+        mid = ttk.Frame(body)
+        mid.grid(row=0, column=1, sticky="ns", padx=10)
+        mid.columnconfigure(0, weight=1)
+
+        self._btn_encrypt = ttk.Button(mid, text="Зашифровать →", command=self._encrypt)
+        self._btn_encrypt.grid(row=0, column=0, sticky="ew", pady=(8, 8))
+
+        self._btn_decrypt = ttk.Button(mid, text="← Расшифровать", command=self._decrypt)
+        self._btn_decrypt.grid(row=1, column=0, sticky="ew", pady=(0, 10))
+
+        ttk.Separator(mid).grid(row=2, column=0, sticky="ew", pady=10)
+
+        ttk.Button(mid, text="Копировать текст", command=self._copy_plain).grid(
+            row=3, column=0, sticky="ew", pady=(0, 8)
+        )
+        ttk.Button(mid, text="Копировать шифртекст", command=self._copy_cipher).grid(
+            row=4, column=0, sticky="ew", pady=(0, 8)
+        )
+        ttk.Button(mid, text="Очистить всё", command=self._clear_all).grid(
+            row=5, column=0, sticky="ew"
+        )
+
+        # Ciphertext panel
+        cipher_box = ttk.Labelframe(body, text="Шифртекст (контейнер)")
+        cipher_box.grid(row=0, column=2, sticky="nsew")
+        cipher_box.columnconfigure(0, weight=1)
+        cipher_box.rowconfigure(1, weight=1)
+
+        cipher_toolbar = ttk.Frame(cipher_box)
+        cipher_toolbar.grid(row=0, column=0, sticky="ew", padx=4, pady=(4, 0))
+        cipher_toolbar.columnconfigure(0, weight=1)
+
+        ttk.Button(cipher_toolbar, text="Загрузить…", command=self._load_cipher_from_file).grid(
+            row=0, column=0, sticky="w", padx=(0, 8)
+        )
+        ttk.Button(cipher_toolbar, text="Сохранить…", command=self._save_cipher_to_file).grid(
+            row=0, column=1, sticky="w"
+        )
+
+        self.cipher_text = self._create_text_with_scrollbar(cipher_box, row=1)
+
+        # Status bar
+        ttk.Label(self, textvariable=self.status_var, style="Status.TLabel").grid(
+            row=3, column=0, sticky="ew", pady=(6, 0)
+        )
+        ttk.Frame(self).grid(row=4, column=0, sticky="ew", pady=(0, 10))
