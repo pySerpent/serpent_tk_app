@@ -366,3 +366,25 @@ class SerpentGUI(ttk.Frame):
         except ValidationError as exc:
             self._set_status(f"Ошибка сохранения: {exc}")
             messagebox.showerror("Ошибка сохранения", str(exc), parent=self.master)
+    def _load_cipher_from_file(self) -> None:
+        path = self._ask_open_txt("Выберите файл с контейнером шифртекста (UTF-8)")
+        if not path:
+            return
+        try:
+            content = read_text_file_utf8(path, max_bytes=2_000_000).strip()
+            self._set_cipher(content)
+            self._set_status("Шифртекст загружен из файла.")
+        except ValidationError as exc:
+            self._set_status(f"Ошибка загрузки: {exc}")
+            messagebox.showerror("Ошибка загрузки", str(exc), parent=self.master)
+
+    def _save_cipher_to_file(self) -> None:
+        path = self._ask_save_txt("Сохранить шифртекст (контейнер)", "cipher_container.txt")
+        if not path:
+            return
+        try:
+            write_text_file_utf8(path, self._get_cipher().strip() + "\n", max_bytes=2_000_000)
+            self._set_status("Шифртекст сохранён.")
+        except ValidationError as exc:
+            self._set_status(f"Ошибка сохранения: {exc}")
+            messagebox.showerror("Ошибка сохранения", str(exc), parent=self.master)
