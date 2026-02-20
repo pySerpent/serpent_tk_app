@@ -116,3 +116,41 @@ def _apply_sbox_bitslice(
         y3 |= ((u >> 3) & 1) << j
 
     return (y0 & _MASK32, y1 & _MASK32, y2 & _MASK32, y3 & _MASK32)
+def _lt(words4: Tuple[int, int, int, int]) -> Tuple[int, int, int, int]:
+    """
+    Serpent linear transform (LT), operating on 4x32-bit words.
+    """
+    x0, x1, x2, x3 = (w & _MASK32 for w in words4)
+
+    x0 = _rotl32(x0, 13)
+    x2 = _rotl32(x2, 3)
+    x1 = (x1 ^ x0 ^ x2) & _MASK32
+    x3 = (x3 ^ x2 ^ ((x0 << 3) & _MASK32)) & _MASK32
+    x1 = _rotl32(x1, 1)
+    x3 = _rotl32(x3, 7)
+    x0 = (x0 ^ x1 ^ x3) & _MASK32
+    x2 = (x2 ^ x3 ^ ((x1 << 7) & _MASK32)) & _MASK32
+    x0 = _rotl32(x0, 5)
+    x2 = _rotl32(x2, 22)
+
+    return (x0, x1, x2, x3)
+
+
+def _inv_lt(words4: Tuple[int, int, int, int]) -> Tuple[int, int, int, int]:
+    """
+    Inverse of Serpent LT.
+    """
+    x0, x1, x2, x3 = (w & _MASK32 for w in words4)
+
+    x2 = _rotr32(x2, 22)
+    x0 = _rotr32(x0, 5)
+    x2 = (x2 ^ x3 ^ ((x1 << 7) & _MASK32)) & _MASK32
+    x0 = (x0 ^ x1 ^ x3) & _MASK32
+    x3 = _rotr32(x3, 7)
+    x1 = _rotr32(x1, 1)
+    x3 = (x3 ^ x2 ^ ((x0 << 3) & _MASK32)) & _MASK32
+    x1 = (x1 ^ x0 ^ x2) & _MASK32
+    x2 = _rotr32(x2, 3)
+    x0 = _rotr32(x0, 13)
+
+    return (x0, x1, x2, x3)
