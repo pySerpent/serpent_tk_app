@@ -154,3 +154,45 @@ def _inv_lt(words4: Tuple[int, int, int, int]) -> Tuple[int, int, int, int]:
     x0 = _rotr32(x0, 13)
 
     return (x0, x1, x2, x3)
+def _pad_user_key(key: bytes) -> bytes:
+    """
+    Serpent key padding to 256 bits.
+    """
+    if len(key) not in (16, 24, 32):
+        raise ValueError("Key must be 16, 24, or 32 bytes (128/192/256 bits).")
+    if len(key) == 32:
+        return key
+    # append 0x01 then zeros to reach 32 bytes total
+    padded = key + b"\x01" + b"\x00" * (31 - len(key))
+    return padded
+
+
+def _make_subkeys(user_key: bytes) -> List[Tuple[int, int, int, int]]:
+    """
+    Key schedule: generate 33 round keys from user key.
+    """
+    key256 = _pad_user_key(user_key)
+    w = [0] * 140  # indices 0..139 correspond to w[-8]..w[131]
+
+    k_words = struct.unpack("<8I", key256)  # little-endian
+    for i in range(8):
+        w[i] = k_words[i] & _MASK32  # w[-8 + i]
+
+    # Expand: for i=0..131, compute w[i] (stored at w[i+8])
+    for i in range(132):
+        t = (w[i] ^ w[i + 3] ^ w[i + 5] ^ w[i + 7] ^ _PHI ^ i) & _MASK32
+        w[i + 8] = _rotl32(t, 11)
+
+    # Build subkeys K[0..32]
+    subkeys: List[Tuple[int, int, int, int]] = []
+    for r in range(33):
+        a0 = w[4 * r + 8]
+        a1 = w[4 * r + 9]
+        a2 = w[4 * r + 10]
+        a3 = w[4 * r + 11]
+        # Key schedule uses S-boxes in reverse order
+        sbox = _SBOXES[(3 - r) % 8]
+        k = _apply_sbox_bitslice((a0, a1, a2, a3), sbox)
+        subkeys.append(k)
+
+    return subkeys
