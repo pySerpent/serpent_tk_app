@@ -130,3 +130,70 @@ def _xor_bytes(a: bytes, b: bytes) -> bytes:
     if len(a) != len(b):
         raise ValueError("Internal error: XOR length mismatch.")
     return bytes(x ^ y for x, y in zip(a, b))
+# -------- Container --------
+
+def _b64encode(data: bytes) -> str:
+    return base64.b64encode(data).decode("ascii")
+
+
+def _b64decode(s: str, *, field_name: str) -> bytes:
+    if s is None:
+        raise ValidationError(f"Отсутствует поле {field_name} в контейнере.")
+
+    s2 = s.strip()
+    if not s2:
+        raise ValidationError(f"Пустое поле {field_name} в контейнере.")
+
+    try:
+        return base64.b64decode(s2, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValidationError(f"Поле {field_name} не является корректным base64.") from exc
+
+
+def pack_container(*, nonce: bytes, ciphertext: bytes) -> str:
+    if len(nonce) != NONCE_SIZE:
+        raise ValueError("Internal error: invalid nonce length.")
+
+    n_b64 = _b64encode(nonce)
+    c_b64 = _b64encode(ciphertext)
+    return f"{CONTAINER_VERSION}:{n_b64}:{c_b64}"
+
+
+def unpack_container(container: str) -> Tuple[bytes, bytes]:
+    if container is None:
+        raise ValidationError("Поле шифртекста пустое.")
+
+    s = container.strip()
+    if not s:
+        raise ValidationError("Поле шифртекста пустое.")
+
+    parts = s.split(":")
+    if len(parts) == 3:
+        ver, nonce_b64, ct_b64 = parts
+        alg = None
+    elif len(parts) == 4:
+        ver, alg, nonce_b64, ct_b64 = parts
+    else:
+        raise ValidationError(
+            "Неверный формат шифртекста. Ожидается контейнер вида "
+            "'v1:<nonce_b64>:<ciphertext_b64>'."
+        )
+
+    if ver != CONTAINER_VERSION:
+        raise ValidationError(
+            f"Неподдерживаемая версия контейнера: {ver!r}. Ожидается {CONTAINER_VERSION!r}."
+        )
+
+    if alg is not None and alg != CONTAINER_ALG:
+        raise ValidationError(
+            f"Неподдерживаемый алгоритм/режим: {alg!r}. Ожидается {CONTAINER_ALG!r}."
+        )
+
+    nonce = _b64decode(nonce_b64, field_name="nonce")
+    if len(nonce) != NONCE_SIZE:
+        raise ValidationError(
+            f"Некорректная длина nonce: {len(nonce)} байт. Ожидается {NONCE_SIZE} байт."
+        )
+
+    ciphertext = _b64decode(ct_b64, field_name="ciphertext")
+    return nonce, ciphertext
